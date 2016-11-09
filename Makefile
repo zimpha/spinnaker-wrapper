@@ -15,6 +15,9 @@ single_demo: single_demo.o
 trigger_demo: trigger_demo.o
 	${CC} -o trigger_demo trigger_demo.o ${LIB}
 
+binocular_demo: binocular_demo.o
+	${CC} -o binocular_demo binocular_demo.o ${LIB}
+
 %.o: %.cpp
 	${CC} ${CFLAGS} ${INC} -Wall -c -D LINUX $*.cpp
 
@@ -22,4 +25,4 @@ clean_obj:
 	rm -f *.o	@echo "all cleaned up!"
 
 clean:
-	rm -f single_demo trigger_demo *.o	@echo "all cleaned up!"
+	rm -f single_demo trigger_demo binocular_demo *.o	@echo "all cleaned up!"
