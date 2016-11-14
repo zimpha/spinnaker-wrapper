@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <sstream>
 #include <chrono>
+#include <sys/stat.h>
 
 using namespace Spinnaker;
 using namespace Spinnaker::GenApi;
@@ -30,6 +31,7 @@ public:
     return m;
   }
   CameraPtr get_camera(const std::string& serial_number) const {
+    std::cout << camList.GetSize()<< std::endl;
     return camList.GetBySerial(serial_number);
   }
 };
@@ -145,6 +147,10 @@ public:
   }
   double get_exposure_time() const {
     return cam_ptr->ExposureTime.GetValue();
+  }
+  void set_exposure_upperbound(double value) {
+    CFloatPtr AutoExposureExposureTimeUpperLimit = node_map->GetNode("AutoExposureExposureTimeUpperLimit");
+    AutoExposureExposureTimeUpperLimit->SetValue(value);
   }
 
   // Setting Gain
@@ -264,7 +270,9 @@ struct image_t {
   }
   void save() const noexcept {
     std::ostringstream filename;
-    filename << prefix << '-' << std::setfill('0') << std::setw(8) << idx << '-';
+    filename << prefix << (sys_ts / (60 * 1000000)) << '/';
+    mkdir(filename.str().c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+    filename << std::setfill('0') << std::setw(8) << idx << '-';
     filename << sys_ts << '-' << img_ts << ".jpg";
     cv::imwrite(filename.str().c_str(), img);
   }
