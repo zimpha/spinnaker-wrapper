@@ -8,6 +8,7 @@
 #include <sstream>
 #include <chrono>
 #include <sys/stat.h>
+#include <stdexcept>
 
 using namespace Spinnaker;
 using namespace Spinnaker::GenApi;
@@ -21,7 +22,10 @@ private:
     system = System::GetInstance();
     camList = system->GetCameras();
   }
+
 public:
+  camera_manager(const camera_manager &other) = delete;
+  camera_manager& operator = (const camera_manager &other) = delete;
   ~camera_manager() {
     camList.Clear();
     system->ReleaseInstance();
@@ -30,8 +34,7 @@ public:
     static camera_manager m;
     return m;
   }
-  CameraPtr get_camera(const std::string& serial_number) const {
-    std::cout << camList.GetSize()<< std::endl;
+  CameraPtr get_camera_by_serial(const std::string& serial_number) const {
     return camList.GetBySerial(serial_number);
   }
 };
@@ -39,12 +42,39 @@ public:
 class camera_wrapper {
 public:
   camera_wrapper(std::string serialNumber) {
-    cam_ptr = camera_manager::the_manager().get_camera(serialNumber);
+    cam_ptr = camera_manager::the_manager().get_camera_by_serial(serialNumber);
     cam_ptr->Init();
     node_map = &cam_ptr->GetNodeMap();
   }
+
+  camera_wrapper(camera_wrapper &&other):
+    cam_ptr(other.cam_ptr),
+    node_map(other.node_map),
+    system_timestamp(other.system_timestamp),
+    image_timestamp(other.image_timestamp) {
+    other.cam_ptr = NULL;
+    other.node_map = nullptr;
+  }
+
+  camera_wrapper& operator = (camera_wrapper &&other) {
+    if (this != &other) {
+      cam_ptr = other.cam_ptr;
+      node_map = other.node_map;
+      system_timestamp = other.system_timestamp;
+      image_timestamp = other.image_timestamp;
+      other.cam_ptr = NULL;
+      other.node_map = nullptr;
+    }
+    return *this;
+  }
+
+  camera_wrapper(const camera_wrapper &other) = delete;
+  camera_wrapper& operator = (const camera_wrapper &other) = delete;
+
   ~camera_wrapper() {
     cam_ptr->DeInit();
+    cam_ptr = NULL;
+    node_map = nullptr;
   }
 
   // Print Device Info
@@ -79,7 +109,7 @@ public:
    *                  AcquisitionFrameCount.
    */
   void set_acquisition_mode(const std::string &mode = "Continuous") {
-    auto mode = AcquisitionModeEnums::AcquisitionMode_Continuous;
+    auto mode_value = AcquisitionModeEnums::AcquisitionMode_Continuous;
     if (mode == "Continuous") {
       mode_value = AcquisitionModeEnums::AcquisitionMode_Continuous;
     } else if (mode == "SingleFrame") {
@@ -89,7 +119,7 @@ public:
     } else {
       throw std::invalid_argument("Invalid argument: mode = " + mode + ".");
     }
-    cam_ptr->AcquisitionMode.SetValue(mode);
+    cam_ptr->AcquisitionMode.SetValue(mode_value);
   }
   std::string get_acquisition_mode() const {
     auto mode = cam_ptr->AcquisitionMode.GetValue();
@@ -224,7 +254,7 @@ public:
     cam_ptr->ExposureAuto.SetValue(mode_value);
   }
   std::string get_automatic_exposure_mode() const {
-    auto mode = cam_ptr.ExposureAuto.GetValue();
+    auto mode = cam_ptr->ExposureAuto.GetValue();
     if (mode == ExposureAutoEnums::ExposureAuto_Off) {
       return "Off";
     } else if (mode == ExposureAutoEnums::ExposureAuto_Once) {
@@ -352,7 +382,7 @@ public:
     cam_ptr->TriggerSelector.SetValue(selector_value);
   }
   std::string get_trigger_selector() const {
-    auto selector = cam_ptr->TriggerSelector.GetValue(selector_value);
+    auto selector = cam_ptr->TriggerSelector.GetValue();
     if (selector == TriggerSelectorEnums::TriggerSelector_AcquisitionStart) {
       return "AcquisitionStart";
     } else if (selector == TriggerSelectorEnums::TriggerSelector_AcquisitionEnd) {
@@ -591,9 +621,9 @@ public:
     } else if (overlap == "ReadOut") {
       overlap_value = TriggerOverlapEnums::TriggerOverlap_ReadOut;
     } else if (overlap == "PreviousFrame") {
-      overlap_value = overlap_value = TriggerOverlapEnums::TriggerOverlap_PreviousFrame;
+      overlap_value = TriggerOverlapEnums::TriggerOverlap_PreviousFrame;
     } else if (overlap == "PreviousLine") {
-      overlap_value = overlap_value = TriggerOverlapEnums::TriggerOverlap_PreviousLine;
+      overlap_value = TriggerOverlapEnums::TriggerOverlap_PreviousLine;
     } else {
       throw std::invalid_argument("Invalid argument: overlap = " + overlap + ".");
     }
@@ -619,10 +649,10 @@ public:
    * reception before activating it.
    */
   void set_trigger_delay(double delay) {
-    cam_ptr->TriggetDelay.SetValue(delay);
+    cam_ptr->TriggerDelay.SetValue(delay);
   }
   double get_trigger_delay() const {
-    return cam_ptr->TriggetDelay.GetValue();
+    return cam_ptr->TriggerDelay.GetValue();
   }
 
   /**

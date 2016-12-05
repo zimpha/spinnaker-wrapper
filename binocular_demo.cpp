@@ -24,8 +24,8 @@ int main() {
   cam2.set_frame_rate(20);
   cam1.set_exposure_time(5000);
   cam2.set_exposure_time(5000);
-  cam1.start();
-  cam2.start();
+  cam1.start_acquisition();
+  cam2.start_acquisition();
   try {
     while (true) {
       cv::Mat img1 = cam1.grab_next_image("bgr"), dst1;
@@ -47,7 +47,7 @@ int main() {
   } catch (Spinnaker::Exception &e) {
     std::cout << "Error: " << e.what() << std::endl;
   }
-  cam1.end();
-  cam2.end();
+  cam1.stop_acquisition();
+  cam2.stop_acquisition();
   return 0;
 }
